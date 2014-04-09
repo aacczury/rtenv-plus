@@ -792,11 +792,12 @@ void show_ls(int argc, char *argv[])
 	            read(readfd, &entry, sizeof(entry));
 
 		   		write(fdout, entry.name, strlen((char *)entry.name) + 1);
-				write(fdout, "\t", 4);
+				write(fdout, "\t", 2);
 
 	            /* Next entry */
 	            pos = entry.next;
 	        }
+			write(fdout, "\r\n", 3);
 	    }
 		++ i;
 	}while(i < argc);

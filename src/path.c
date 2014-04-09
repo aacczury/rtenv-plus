@@ -103,6 +103,41 @@ void pathserver()
 			    }
 		        break;
 
+		    case PATH_CMD_DIR:
+		        read(PATHSERVER_FD, &plen, 4);
+		        read(PATHSERVER_FD, path, plen);
+		        /* Search for path */
+			    for (i = 0; i < npaths; i++) {
+				    if (*paths[i] && strcmp(path, paths[i]) == 0) {
+					    i += 3; /* 0-2 are reserved */
+					    i += TASK_LIMIT; /* FDs reserved for tasks */
+					    write(replyfd, &i, 4);
+					    i = 0;
+					    break;
+				    }
+			    }
+
+			    if (i < npaths) {
+				    break;
+			    }
+
+		        /* Search for mount point */
+			    for (i = 0; i < nmounts; i++) {
+				    if (*mounts[i].path
+				            && strncmp(path, mounts[i].path,
+				                       strlen(mounts[i].path)) == 0) {
+				    	write(replyfd, &mounts[i].dev, 4);
+					    i = 0;
+					    break;
+				    }
+			    }
+
+			    if (i >= nmounts) {
+				    i = -1; /* Error: not found */
+				    write(replyfd, &i, 4);
+			    }
+		        break;
+
 		    case PATH_CMD_REGISTER_PATH:
 		        read(PATHSERVER_FD, &plen, 4);
 		        read(PATHSERVER_FD, path, plen);
