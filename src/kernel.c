@@ -52,6 +52,8 @@ void show_task_info(int argc, char *argv[]);
 void show_man_page(int argc, char *argv[]);
 void show_history(int argc, char *argv[]);
 void show_xxd(int argc, char *argv[]);
+void show_cat(int argc, char *argv[]);
+void show_ls(int argc, char *argv[]);
 
 /* Enumeration for command types. */
 enum {
@@ -62,6 +64,8 @@ enum {
 	CMD_MAN,
 	CMD_PS,
 	CMD_XXD,
+	CMD_CAT,
+	CMD_LS,
 	CMD_COUNT
 } CMD_TYPE;
 /* Structure for command handler. */
@@ -78,6 +82,8 @@ const hcmd_entry cmd_data[CMD_COUNT] = {
 	[CMD_MAN] = {.cmd = "man", .func = show_man_page, .description = "Manual pager."},
 	[CMD_PS] = {.cmd = "ps", .func = show_task_info, .description = "List all the processes."},
 	[CMD_XXD] = {.cmd = "xxd", .func = show_xxd, .description = "Make a hexdump."},
+	[CMD_CAT] = {.cmd = "cat", .func = show_cat, .description = "Concatenate files and print on the standard output."},
+	[CMD_LS] = {.cmd = "ls", .func = show_ls, .description = "List directory contents."}
 };
 
 /* Structure for environment variables. */
@@ -705,6 +711,96 @@ void show_xxd(int argc, char *argv[])
     }
 }
 
+#define CAT_BUFFER_SIZE 32
+
+void show_cat(int argc, char *argv[])
+{
+	char buf[CAT_BUFFER_SIZE];
+    int readfd = -1;
+	int size;
+	int i;
+
+    if (argc == 1) { /* fallback to stdin */
+        readfd = fdin;
+    }
+    else { /* open files of argv */
+		for (i = 1; i < argc; i++) {
+			readfd = open(argv[i], 0);
+
+			if (readfd < 0) {
+				write(fdout, "cat: ", 6);
+	            write(fdout, argv[i], strlen(argv[i]) + 1);
+	            write(fdout, ": No such file or directory\r\n", 31);
+				return;
+			}
+			else {
+				while (1) {
+					size = read(readfd, buf, sizeof(buf));
+
+					if(size)
+						write(fdout, buf, strlen(buf) + 1);
+					else
+						break;
+				}
+			}
+	        write(fdout, "\r", 2);
+	        // did't know how to close file
+		}
+	}
+}
+
+struct romfs_entry {
+    uint32_t parent;
+    uint32_t prev;
+    uint32_t next;
+    uint32_t isdir;
+    uint32_t len;
+    uint8_t name[PATH_MAX];
+};
+
+void show_ls(int argc, char *argv[])
+{
+	struct romfs_entry entry;
+	int readfd = -1;
+	int i = 1;
+
+	if (argc == 1) {
+        readfd = dir("/", 0);
+    }
+	do {
+	    if(argc != 1) { /* open dir of argv */
+	    	readfd = dir(argv[i], 0);
+		}
+    	if (readfd < 0) {
+			write(fdout, "ls: ", 5);
+            write(fdout, argv[i], strlen(argv[i]) + 1);
+            write(fdout, ": No such file or directory\r\n", 31);
+			return;
+    	}
+		if(argc != 1){
+		    write(fdout, argv[i], strlen(argv[i]) + 1);
+			write(fdout, ":\r\n", 4);
+		}
+
+	    lseek(readfd, 0, SEEK_SET);
+	    read(readfd, &entry, sizeof(entry));
+	    if(entry.isdir){
+	        int pos = sizeof(entry);
+	        while (pos) {
+	            /* Get entry */
+	            lseek(readfd, pos, SEEK_SET);
+	            read(readfd, &entry, sizeof(entry));
+
+		   		write(fdout, entry.name, strlen((char *)entry.name) + 1);
+				write(fdout, "\t", 4);
+
+	            /* Next entry */
+	            pos = entry.next;
+	        }
+	    }
+		++ i;
+	}while(i < argc);
+}
 
 void first()
 {
