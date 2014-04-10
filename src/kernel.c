@@ -747,11 +747,11 @@ void show_ls(int argc, char *argv[])
 	int i = 1;
 
 	if (argc == 1) {
-        readfd = dir("/", 0);
+        readfd = opendir("/");
     }
 	do {
 	    if(argc != 1) { /* open dir of argv */
-	    	readfd = dir(argv[i], 0);
+	    	readfd = opendir(argv[i]);
 		}
     	if (readfd < 0) {
 			write(fdout, "ls: ", 5);
