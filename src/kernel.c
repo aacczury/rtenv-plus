@@ -742,45 +742,83 @@ struct romfs_entry {
 
 void show_ls(int argc, char *argv[])
 {
+	const int _a = 2;
+	const int _l = 1;
+	int flag = 0;
 	struct romfs_entry entry;
 	int readfd = -1;
-	int i = 1;
+	int i;
+	int nodir = argc - 1;
 
-	if (argc == 1) {
-        readfd = opendir("/");
-    }
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-l")){
+			nodir --;
+			flag |= _l;
+		}
+		else if (!strcmp(argv[i], "-a") || !strcmp(argv[i], "--all")){
+			nodir --;
+			flag |= _a;
+		}
+	}
+	i = 1;
+
 	do {
-	    if(argc != 1) { /* open dir of argv */
+		if(nodir && (!strcmp(argv[i], "-l") || !strcmp(argv[i], "-a") || !strcmp(argv[i], "--all"))){
+			++ i;
+			continue;
+		}
+	    if(nodir) { /* open dir of argv */
 	    	readfd = opendir(argv[i]);
 		}
+		else {
+        	readfd = opendir("/");
+    	}
+
     	if (readfd < 0) {
 			write(fdout, "ls: ", 5);
             write(fdout, argv[i], strlen(argv[i]) + 1);
             write(fdout, ": No such file or directory\r\n", 31);
 			return;
     	}
-		if(argc != 1){
+		if(nodir > 1 && strcmp(argv[i], "-l") && strcmp(argv[i], "-a") && strcmp(argv[i], "--all")){
 		    write(fdout, argv[i], strlen(argv[i]) + 1);
 			write(fdout, ":\r\n", 4);
 		}
 
 	    lseek(readfd, 0, SEEK_SET);
 	    read(readfd, &entry, sizeof(entry));
+	    int pos = 0 + sizeof(entry);
+
 	    if(entry.isdir){
-	        int pos = sizeof(entry);
+		   	if(flag & _l) write(fdout, "Size\tName\tisdir\r\n", 18);
 	        while (pos) {
-	            /* Get entry */
 	            lseek(readfd, pos, SEEK_SET);
 	            read(readfd, &entry, sizeof(entry));
 
-		   		write(fdout, entry.name, strlen((char *)entry.name) + 1);
-				write(fdout, "\t", 2);
+	            if(entry.name[0] == '.' && !(flag & _a)) continue;
+	            if(flag & _l){
+	    			char lens[32];
+	            	itoa(entry.len, lens, 10);
+		   			write(fdout, lens, strlen(lens) + 1);
+					write(fdout, "\t", 2);
+		   			write(fdout, entry.name, strlen((char *)entry.name) + 1);
+					if(entry.isdir){
+						write(fdout, "\t", 2);
+		   				write(fdout, "[*]", 4);
+					}
+					write(fdout, "\r\n", 3);
+	            }
+	            else{
+		   			write(fdout, entry.name, strlen((char *)entry.name) + 1);
+					write(fdout, "\t", 2);
+				}
 
 	            /* Next entry */
 	            pos = entry.next;
 	        }
 			write(fdout, "\r\n", 3);
 	    }
+	    if(!nodir) break;
 		++ i;
 	}while(i < argc);
 }

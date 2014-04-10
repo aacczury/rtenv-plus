@@ -67,6 +67,9 @@ check:
 	$(CROSS_COMPILE)gdb -batch -x $(UNIT_TEST)/test-export_envvar.in
 	@mv -f gdb.txt $(UNIT_TEST)/test-export_envvar.txt
 	@echo
+	$(CROSS_COMPILE)gdb -batch -x $(UNIT_TEST)/test-cat.in
+	@mv -f gdb.txt $(UNIT_TEST)/test-ls.txt
+	@echo
 	@pkill -9 $(notdir $(QEMU_STM32))
 
 qemudbg_remote_bg: $(OUTDIR)/$(TARGET).bin $(QEMU_STM32)
