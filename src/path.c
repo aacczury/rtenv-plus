@@ -4,6 +4,7 @@
 #include "string.h"
 #include "syscall.h"
 #include "fs.h"
+#include "dirent.h"
 
 struct mount {
     int fs;
@@ -126,14 +127,21 @@ void pathserver()
 				    if (*mounts[i].path
 				            && strncmp(path, mounts[i].path,
 				                       strlen(mounts[i].path)) == 0) {
-				    	write(replyfd, &mounts[i].dev, 4);
+				        int mlen = strlen(mounts[i].path);
+					    struct fs_request request;
+					    request.cmd = FS_CMD_OPEN_DIR;
+					    request.from = replyfd;
+					    request.device = mounts[i].dev;
+					    request.pos = mlen; /* search starting position */
+					    memcpy(request.path, &path, plen);
+					    write(mounts[i].fs, &request, sizeof(request));
 					    i = 0;
 					    break;
 				    }
 			    }
 
 			    if (i >= nmounts) {
-				    i = -1; /* Error: not found */
+				    i = 0; /* Error: not found */
 				    write(replyfd, &i, 4);
 			    }
 		        break;

@@ -23,6 +23,7 @@
 #include "romdev.h"
 #include "event-monitor.h"
 #include "romfs.h"
+#include "dirent.h"
 
 void *malloc(size_t size)
 {
@@ -731,22 +732,12 @@ void show_cat(int argc, char *argv[])
 	}
 }
 
-struct romfs_entry {
-    uint32_t parent;
-    uint32_t prev;
-    uint32_t next;
-    uint32_t isdir;
-    uint32_t len;
-    uint8_t name[PATH_MAX];
-};
-
 void show_ls(int argc, char *argv[])
 {
 	const int _a = 2;
 	const int _l = 1;
 	int flag = 0;
-	struct romfs_entry entry;
-	int readfd = -1;
+	dirent *dir;
 	int i;
 	int nodir = argc - 1;
 
@@ -768,13 +759,13 @@ void show_ls(int argc, char *argv[])
 			continue;
 		}
 	    if(nodir) { /* open dir of argv */
-	    	readfd = opendir(argv[i]);
+	    	dir = opendir(argv[i]);
 		}
 		else {
-        	readfd = opendir("/");
+        	dir = opendir("/");
     	}
 
-    	if (readfd < 0) {
+    	if (!dir) {
 			write(fdout, "ls: ", 5);
             write(fdout, argv[i], strlen(argv[i]) + 1);
             write(fdout, ": No such file or directory\r\n", 31);
@@ -785,39 +776,29 @@ void show_ls(int argc, char *argv[])
 			write(fdout, ":\r\n", 4);
 		}
 
-	    lseek(readfd, 0, SEEK_SET);
-	    read(readfd, &entry, sizeof(entry));
-	    int pos = 0 + sizeof(entry);
-
-	    if(entry.isdir){
-		   	if(flag & _l) write(fdout, "Size\tName\tisdir\r\n", 18);
-	        while (pos) {
-	            lseek(readfd, pos, SEEK_SET);
-	            read(readfd, &entry, sizeof(entry));
-
-	            if(entry.name[0] == '.' && !(flag & _a)) continue;
-	            if(flag & _l){
-	    			char lens[32];
-	            	itoa(entry.len, lens, 10);
-		   			write(fdout, lens, strlen(lens) + 1);
+		if(flag & _l) write(fdout, "Size\tName\tisdir\r\n", 18);
+		while (dir) {
+			if(dir->name[0] == '.' && !(flag & _a)) continue;
+			if(flag & _l){
+				char sizes[32];
+				itoa(dir->size, sizes, 10);
+				write(fdout, sizes, strlen(sizes) + 1);
+				write(fdout, "\t", 2);
+				write(fdout, dir->name, strlen(dir->name) + 1);
+				if(dir->isdir){
 					write(fdout, "\t", 2);
-		   			write(fdout, entry.name, strlen((char *)entry.name) + 1);
-					if(entry.isdir){
-						write(fdout, "\t", 2);
-		   				write(fdout, "[*]", 4);
-					}
-					write(fdout, "\r\n", 3);
-	            }
-	            else{
-		   			write(fdout, entry.name, strlen((char *)entry.name) + 1);
-					write(fdout, "\t", 2);
+					write(fdout, "[*]", 4);
 				}
+				write(fdout, "\r\n", 3);
+			}
+			else{
+				write(fdout, dir->name, strlen(dir->name) + 1);
+				write(fdout, "\t", 2);
+			}
 
-	            /* Next entry */
-	            pos = entry.next;
-	        }
-			write(fdout, "\r\n", 3);
-	    }
+			dir = dir->next;
+		}
+		write(fdout, "\r\n", 3);
 	    if(!nodir) break;
 		++ i;
 	}while(i < argc);

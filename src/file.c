@@ -32,12 +32,12 @@ int mkfile(const char *pathname, int mode, int dev)
 	return status;
 }
 
-int opendir(const char *name)
+dirent *opendir(const char *name)
 {
     int cmd = PATH_CMD_DIR;
 	unsigned int replyfd = getpid() + 3;
 	size_t plen = strlen(name) + 1;
-	unsigned int fd = -1;
+	dirent *dir = NULL;
 	char buf[4 + 4 + 4 + PATH_MAX];
 	int pos = 0;
 
@@ -47,9 +47,9 @@ int opendir(const char *name)
 	path_write_data(buf, name, plen, pos);
 
 	write(PATHSERVER_FD, buf, pos);
-	read(replyfd, &fd, 4);
+	read(replyfd, &dir, 4);
 
-	return fd;
+	return dir;
 }
 
 int open(const char *pathname, int flags)

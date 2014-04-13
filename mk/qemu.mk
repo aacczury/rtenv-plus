@@ -22,8 +22,7 @@ qemu_remote: $(OUTDIR)/$(TARGET).bin $(QEMU_STM32)
 qemudbg_remote: $(OUTDIR)/$(TARGET).bin $(QEMU_STM32)
 	$(QEMU_STM32) -M stm32-p103 \
 		-gdb tcp::3333 -S \
-		-kernel $(OUTDIR)/$(TARGET).bin \
-		-vnc :1
+		-kernel $(OUTDIR)/$(TARGET).bin
 
 qemu_remote_bg: $(OUTDIR)/$(TARGET).bin $(QEMU_STM32)
 	$(QEMU_STM32) -M stm32-p103 \

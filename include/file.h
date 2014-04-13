@@ -5,6 +5,7 @@
 #include "task.h"
 #include "event-monitor.h"
 #include "memory-pool.h"
+#include "dirent.h"
 
 /* file types */
 #define S_IFIFO 1
@@ -51,7 +52,7 @@ struct file_operations {
 };
 
 int mkfile(const char *pathname, int mode, int dev);
-int opendir(const char *name);
+dirent *opendir(const char *name);
 int open(const char *pathname, int flags);
 
 int file_read(struct file *file, struct file_request *request,

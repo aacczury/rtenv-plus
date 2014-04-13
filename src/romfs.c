@@ -6,6 +6,7 @@
 #include "fs.h"
 #include "file.h"
 #include "string.h"
+#include "dirent.h"
 
 struct romfs_file {
     int fd;
@@ -42,7 +43,7 @@ int romfs_open_recur(int device, char *path, int this, struct romfs_entry *entry
                 else if (path[len] == 0) { /* Match file */
                     return pos;
                 }
-            }
+            } 
 
             /* Next entry */
             pos = entry->next;
@@ -50,6 +51,39 @@ int romfs_open_recur(int device, char *path, int this, struct romfs_entry *entry
     }
 
     return -1;
+}
+
+dirent *romfs_open_dir(int device, char *path, struct romfs_entry *entry)
+{
+    dirent d[10];
+    dirent *dir = d;
+    int i=0;
+
+    lseek(device, 0, SEEK_SET);
+    read(device, entry, sizeof(*entry));
+    int pos;
+    if(strlen(path)==0){
+        pos = 0 + sizeof(*entry);
+    }
+    else{
+        pos = romfs_open_recur(device, path, 0, entry);
+        pos = pos + sizeof(*entry);
+    }
+    while (pos) {
+        lseek(device, pos, SEEK_SET);
+        read(device, entry, sizeof(*entry));
+
+        memcpy(dir[i].name, entry->name, strlen((char *)entry->name));
+        dir[i].name[strlen((char *)entry->name)]='\0';
+        dir[i].size = entry->len;
+        dir[i].isdir = entry->isdir;
+        dir[i].next = (dir+i+1);
+        i++;
+        pos = entry->next;
+    }
+    dir[i-1].next=NULL;
+    
+    return dir;
 }
 
 /*
@@ -115,6 +149,15 @@ void romfs_server()
                     /* Response */
 	                write(from, &status, sizeof(status));
 	                break;
+                case FS_CMD_OPEN_DIR:
+                    device = request.device;
+                    from = request.from;
+                    pos = request.pos; /* searching starting position */
+                    dirent *dir = romfs_open_dir(request.device, request.path + pos, &entry);
+
+                    /* Response */
+                    write(from, &dir, sizeof(dir));
+                    break;
 	            case FS_CMD_READ:
 	                from = request.from;
 	                target = request.target;
